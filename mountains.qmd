@@ -1,0 +1,20 @@
+---
+title: "Mountaineering"
+about:
+  id: background
+  template: trestles
+  image: img/HoodSummit_2021.jpg
+  links:
+    - text: Peakbagger
+      icon: image-alt
+      href: https://www.peakbagger.com/climber/climber.aspx?cid=44119
+---
+
+:::{#background}
+
+## Background
+
+I developed a love for hiking after my first stint living and studying in China. I didn't really start hiking much until grad school in North Carolina and then afterwords during nearly a year of traveling the world. My five and a half years in Seattle really got me into more challenging and technical mountaineering. Now that I live on the East Coast, my mountaineering and hiking have slowed, but I'm still exploring what the eastern US has to offer. See my Peakbagger page linked here for more information on my summits, and feel free to add my as a friend on there and reach out if you want to hike in the Northeast!
+:::
+
+

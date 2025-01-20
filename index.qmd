@@ -1,19 +1,44 @@
 ---
-title: "About Me"
+title: "Drew Day"
 about:
   id: me
-  template: broadside
-  image: img/profile.png
+  template: trestles
+  image: img/Wednesday-182.jpg
+  links:
+    - text: GitHub
+      icon: github
+      href: https://github.com/drewdstat
+    - text: LinkedIn
+      icon: linkedin
+      href: https://www.linkedin.com/in/drewbday
+    - text: Google Scholar
+      icon: google
+      href: https://scholar.google.com/citations?user=DmpanVEAAAAJ&hl=en
+    - text: Full CV
+      icon: filetype-pdf
+      href: extras/DrewDay-Academic-CV-2025Q1.pdf
 ---
 
 :::{#me}
 
-## Goals
+### Goals
 
-## Education
+I want to be advancing the cutting edge of statistics and data science for personalizing medicine, discovering markers of disease, identifying efficacy and safety signals in real-world data, and optimizing the health and economic benefits of medications.
 
-## Experience
+The purpose of this website is not just to introduce my work, but also to blog about the latest statistical and programming advances.
 
+### Experience
+
+**Epidemiologist** - Seattle Children's Research Institute - 3 years
+
+**Research Scientist III, Epidemiology** - Seattle Children's Research Institute - 3 years
+
+**Research Associate** - Duke University Integrated Toxicology and Environmental Health - 5 years
+
+### Education
+
+**Ph.D.** - Duke University - Integrated Toxicology and Environmental Health
+  - Combined training in toxicology, statistics, and epidemiology
+  
+**B.A., B.A., B.S.** - Penn State University Schreyer Honors College
 :::
-
-Thanks for checking out my web site!

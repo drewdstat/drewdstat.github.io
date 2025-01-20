@@ -1,0 +1,73 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"My Research\"\n",
+        "about:\n",
+        "  id: background\n",
+        "  template: trestles\n",
+        "  image: img/HoodSummit_2021.jpg\n",
+        "  links:\n",
+        "    - text: Google Scholar\n",
+        "      icon: google\n",
+        "      href: https://scholar.google.com/citations?user=DmpanVEAAAAJ&hl=en\n",
+        "cv:\n",
+        "  pdf: \"DrewDay-Academic CV-2025Q1.pdf\"\n",
+        "---\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        ":::{#background}\n",
+        "\n",
+        "## Background\n",
+        "\n",
+        "I developed a love for hiking after my first stint living and studying in China. I didn't really start hiking much until grad school in North Carolina and then afterwords during nearly a year of traveling the world. My five and a half years in Seattle really got me into more challenging and technical mountaineering. Now that I live on the East Coast, my mountaineering and hiking have slowed, but I'm still exploring what the eastern US has to offer. See my Peakbagger page linked here for more information on my summits, and feel free to add my as a friend on there and reach out if you want to hike in the Northeast!\n",
+        ":::\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        "```{css, echo=FALSE}\n",
+        "#title-block-header .description {\n",
+        "    display: none;\n",
+        "}\n",
+        "```\n",
+        "\n",
+        "```{css echo=FALSE}\n",
+        ".embed-container {\n",
+        "    position: relative;\n",
+        "    padding-bottom: 129%;\n",
+        "    height: 0;\n",
+        "    overflow: hidden;\n",
+        "    max-width: 100%;\n",
+        "}\n",
+        "\n",
+        ".embed-container iframe,\n",
+        ".embed-container object,\n",
+        ".embed-container embed {\n",
+        "    position: absolute;\n",
+        "    top: 0;\n",
+        "    left: 0;\n",
+        "    width: 100%;\n",
+        "    height: 100%;\n",
+        "}\n",
+        "```"
+      ],
+      "id": "fabe1e6f"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "C:\\Users\\dday6\\miniconda3\\envs\\pytorch_env\\share\\jupyter\\kernels\\python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

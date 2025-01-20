@@ -3,24 +3,29 @@ project:
   output-dir: docs
   
 website:
-  title: "MY WEB SITE"
+  title: "Drew Day's Website and Blog"
+  description: "Musings and lessons on statistical analysis and programming with a focus on epidemiology, bioinformatics, and health economics"
+  site-url: https://drewdstat.github.io
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - projects.qmd
+      - research.qmd
+      - blogposts.qmd
+      - pkgguides.qmd
+      - mountains.qmd
     tools:
-      - icon: twitter
-        href: https://twitter.com/
+      - icon: linkedin
+        href: https://www.linkedin.com/in/drewbday
       - icon: github
-        href: https://github.com/YOURUSERNAME/YOURREPO
+        href: https://github.com/drewdstat/drewdstat.github.io
   page-footer:
     right: "Built with [Quarto](https://quarto.org/)"
-    left: "&copy; Copyright 2023, YOUR NAME"
+    left: "&copy; Copyright 2025, Drew Day"
 
 format:
   html:
-    theme: cerulean
+    theme: lux
     toc: true
 
 editor: source

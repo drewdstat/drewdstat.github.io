@@ -3,7 +3,7 @@ title: "My Research"
 resources: extras/DrewDay-Academic-CV-2025Q1.pdf
 about:
   id: background
-  template: jolla
+  template: trestles
   image: img/PAS2022_lecture.jpg
   image-width: 15em
   links:
@@ -13,6 +13,8 @@ about:
     - text: Full CV
       icon: filetype-pdf
       href: extras/DrewDay-Academic-CV-2025Q1.pdf
+maintext:
+  id: maintext
 ---
 
 :::{#background}
@@ -20,7 +22,9 @@ about:
 I'm an epidemiologist and statistician formerly working in chemical safety and chronic disease research at the Seattle Children's Research Institute, and now looking for opportunities in pharmaceutical research and development. 
 
 My primary experience is in both developing and applying statistical methods to investigate the determinants of chronic disease. I have training in Bayesian and frequentist statistics, machine learning, epidemiology, toxicology, immunology, bioinformatics (transcriptomics, scRNA, metabolomics, etc.), endocrinology, and neurology.
+:::
 
+:::{#maintext}
 ### Methods Development/Teaching
  - R package [wqspt](https://cran.r-project.org/web/packages/wqspt/index.html): Using a novel permutation test method to improve the statistical properties of the weighted quantile sum regression, which determines the additive combined association of multiple exposures with a single outcome.
  - R package [ResidualKMeans](https://www.github.com/drewdstat/ResidualKMeans): Method for unsupervised clustering of mixed type continuous and categorical data while controlling for structure induced by a grouping variable such as cohort in a multi-cohort study.

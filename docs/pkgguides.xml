@@ -1,0 +1,1592 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>Drew Day&#39;s Website and Blog</title>
+<link>https://drewdstat.github.io/pkgguides.html</link>
+<atom:link href="https://drewdstat.github.io/pkgguides.xml" rel="self" type="application/rss+xml"/>
+<description>Musings and lessons on statistical analysis and programming with a focus on epidemiology, bioinformatics, and health economics</description>
+<generator>quarto-1.6.39</generator>
+<lastBuildDate>Sun, 03 Dec 2023 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>How to use the impgrplasso package</title>
+  <dc:creator>Drew Day</dc:creator>
+  <link>https://drewdstat.github.io/pkgguides/impgrplasso.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>Least Absolute Shrinkage and Selection Operator (LASSO) regression is a statistical technique to impose penalties on independent variables in a regression in order to produce a more sparse model to improve out-of-sample prediction as well as to enhance the interpretability of the model. The L1 penalty of the LASSO model can shrink independent variables to zero, in effect removing them from regression models. There is no clear way of defining traditional frequentist error estimates (i.e., confidence intervals and p-values) for the coefficient estimates in a LASSO regression model since any null distribution for a given independent variable would inevitably result in some models omitting that variable and others not. For this same reason, traditional approaches for combining regression estimates from multiply imputed data do not apply to LASSO regression.</p>
+<p>Multiple imputation is a series of methods for imputing multiple potential values for a missing observation, often based on a probability distribution that is predicted by the other independent and dependent variables to be used in a regression incorporating that variable with missingness. Multiple imputation with chained equations (MICE) is a well-established multiple imputation method that begins by imputing the mean for each missing value of each variable with missingness except for one, using the now “complete” data of other variables to predict values using regression models for the missing values in that selected variable and then use those as imputed values in the next regression imputing values for the next variable, and so on in several iterations of chained regressions. For more explanation see <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3074241/">Azur et al.&nbsp;2011</a>.</p>
+<p>The goal of this package is to adapt one of several suggested methods for combining multiple imputation and LASSO regression, namely the MI-LASSO method of <a href="https://onlinelibrary.wiley.com/doi/10.1002/sim.5783">Chen and Wang 2013</a>, which stacks imputed data sets and then uses a group LASSO penalty to jointly penalize each imputed version of a given independent variable. The ‘impgrplasso’ package builds off of this method, which provided the best combination of interpretability and low prediction error in the comparative simulation study of <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10117422/">Gunn et al.&nbsp;2023</a>, by incorporating the following additional features:</p>
+<ul>
+<li>The use of a prediction loss measure for optimizing the lambda parameter as suggested by Gunn et al.&nbsp;2023 rather than using the Bayes Information Criterion (BIC), adding a log-loss measure for LASSO logistic regression prediction error to the mean squared prediction error (MSE) proposed by Gunn et al.&nbsp;in the case of LASSO standard regression</li>
+<li>The incorporation of k-fold cross validation to optimize lambda rather than single training/test splits</li>
+<li>The incorporation of the established <a href="https://CRAN.R-project.org/package=grplasso">‘grplasso’</a> package (<a href="https://rss.onlinelibrary.wiley.com/doi/10.1111/j.1467-9868.2007.00627.x">Meier et al.&nbsp;2008</a>) for computing group LASSO penalties</li>
+<li>The option to not penalize a subset of independent variables in the LASSO regression</li>
+<li>Automatic detection of dummy variables from the same categorical variable and the application of a group LASSO penalty to those variables</li>
+</ul>
+<section id="about-lasso-regression" class="level2">
+<h2 class="anchored" data-anchor-id="about-lasso-regression">About LASSO Regression</h2>
+<p>Standard LASSO regression minimizes the loss function below:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_%7Bi=1%7D%5E%7BN%7D%7B(y_i-%5B%5Cbeta_0+%5Csum_%7Bj=1%7D%5E%7Bp%7D%7B%5Cbeta_j%20x_%7Bij%7D%5D%7D)%5E2%7D%20+%20%5Clambda%20%5Csum_%7Bj=1%7D%5E%7Bp%7D%7B%5Cleft%5Clvert%7B%5Cbeta_j%7D%5Cright%5Clvert%7D%0A"></p>
+<p>Notice how the formula to the left of the addition sign is just the function that an ordinary least squares (OLS) regression minimizes (i.e., the sum of the squared residuals). The right of the addition sign is the penalization term, which is the sum of the absolute values of all independent variable coefficients <img src="https://latex.codecogs.com/png.latex?%5Cbeta_j"> scaled by the parameter <img src="https://latex.codecogs.com/png.latex?%5Clambda">.</p>
+</section>
+<section id="about-mi-lasso" class="level2">
+<h2 class="anchored" data-anchor-id="about-mi-lasso">About MI-LASSO</h2>
+<p>The Chen and Wang 2013 MI-LASSO approach to LASSO regression for multiply imputed data minimizes the similar function below:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_%7Bd=1%7D%5E%7Bm%7D%7B%5Csum_%7Bi=1%7D%5E%7BN%7D%7B(y_%7Bdi%7D-%5B%5Cbeta_%7B0d%7D+%5Csum_%7Bj=1%7D%5E%7Bp%7D%7B%5Cbeta_%7Bdj%7D%20x_%7Bdij%7D%7D%5D)%5E2%7D%7D%20+%20%5Clambda%20%5Csum_%7Bj=1%7D%5E%7Bp%7D%5Csqrt%7B%5Csum_%7Bd=1%7D%5E%7Bm%7D%7B%5Cbeta%5E2_%7Bdj%7D%7D%7D%0A"></p>
+<p>Here the loss function is being summed over <img src="https://latex.codecogs.com/png.latex?m"> imputed data sets. In practice, we stack the imputed data sets into a model matrix in a diagonal fashion, such that each imputed version of a variable gets a unique column and there are columns of ones for each imputed data set-specific intercept. Then the rows are the observations repeated <img src="https://latex.codecogs.com/png.latex?m"> times with zero values for all but the relevant <img src="https://latex.codecogs.com/png.latex?d">th column for each variable. As an example, let’s say I have 3 observations and 2 variables (<img src="https://latex.codecogs.com/png.latex?X1"> and <img src="https://latex.codecogs.com/png.latex?X2">) with two imputed data sets. <img src="https://latex.codecogs.com/png.latex?X1"> is continuous, but <img src="https://latex.codecogs.com/png.latex?X2"> is categorical and has three levels, meaning that two dummy variables will be generated (the referent level is omitted). Using the vertical bar to denote the imputed version of each variable and the underscore to denote levels of a categorical variable, I will get the following model matrix:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">ID</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">beta0|1</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X1|1</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X2_Level1|1</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X2_Level2|1</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">beta0|2</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X1|2</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X2_Level1|2</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">X2_Level2|2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">ID1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">6.5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ID2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ID3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ID1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">5.9</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ID2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ID3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<p>The parameter <img src="https://latex.codecogs.com/png.latex?%5Clambda"> has to be chosen a priori before each model run, and as <img src="https://latex.codecogs.com/png.latex?%5Clambda"> increases, the degree of penalization increases. Using k-fold cross- validation, a <img src="https://latex.codecogs.com/png.latex?%5Clambda"> value that minimizes out-of-sample prediction loss function can be determined. The range of possible <img src="https://latex.codecogs.com/png.latex?%5Clambda"> will be higher than for a typical LASSO regression because of the high number of imputed columns and the group LASSO penalty between them.</p>
+</section>
+</section>
+<section id="how-to-use-the-impgrplasso-package" class="level1">
+<h1>How to use the <code>impgrplasso</code> package</h1>
+<p>To use <code>impgrplasso</code>, we must first generate a list of imputed data frames. This can be done for example using the <code>mice</code> function from the ‘mice’ package or using the function <code>mice_by_group</code> from this package. The list of data frames must have all categorical columns transformed into dummy variables. This can either be done beforehand or the user can set the argument ‘dummify’ to TRUE (the default), in which case the function will do that transformation. Note that for proper functioning, variable names should not contain underscores (“_“) so that when the dummy variables are generated, an underscore can be added by <code>impgrplasso</code> to separate the variable name (before the added underscore) from its respective levels (after the added underscore).</p>
+<p>In this example, we will use MICE and create a list of imputed data frames using the <code>nhanes</code> example data frame included in the ‘mice’ package.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">suppressPackageStartupMessages</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(mice))</span>
+<span id="cb1-2">nh <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> nhanes</span>
+<span id="cb1-3">nh<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>hyp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.factor</span>(nh<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>hyp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># above brings "hyp" from a {1, 2} set of unique values to {0, 1}</span></span>
+<span id="cb1-5"></span>
+<span id="cb1-6">imp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mice</span>(nh, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">printFlag =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb1-7">dlist <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>imp<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>m, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(x) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">complete</span>(imp, x))</span></code></pre></div>
+</div>
+<section id="mice_by_group" class="level2">
+<h2 class="anchored" data-anchor-id="mice_by_group">mice_by_group</h2>
+<p>Another option is to use the function <code>mice_by_group</code> to generate group-specific imputed data, for example for imputing within study cohorts or study sites in a multi-cohort study.</p>
+<section id="arguments" class="level3">
+<h3 class="anchored" data-anchor-id="arguments">Arguments</h3>
+<ul>
+<li><code>Data</code>: A data frame containing all variables (columns) to be used in the MICE equations and a column with the grouping variable.</li>
+<li><code>groupvar</code>: The column name in <code>Data</code> for the grouping variable. If this column is not of the class ‘factor’, it will be converted to a factor with the default order of factor levels.</li>
+<li><code>miceArgs</code>: These are arguments to be passed on to the <code>mice</code> function from the ‘mice’ package. These include the number of imputed data frames to be generated <code>m</code> (default = 10), the maximum number of MICE iterations <code>maxit</code> (default = 10), a random seed to be set for the MICE for reproducibility <code>seed</code> (default = 123), and a Boolean option for verbose printing <code>printFlag</code> (default = FALSE). All other <code>mice</code> function arguments default to the same values as in the ‘mice’ package (see <code>?mice::mice</code> for details). Note that the default <code>m</code> and <code>maxit</code> for <code>mice</code> are both 5, though I set them to 10 for this function for more iterations and better convergence, respectively.</li>
+</ul>
+</section>
+<section id="outputs" class="level3">
+<h3 class="anchored" data-anchor-id="outputs">Outputs</h3>
+<p>The output of <code>mice_by_group</code> is a list of imputed data frames.</p>
+</section>
+<section id="examples" class="level3">
+<h3 class="anchored" data-anchor-id="examples">Examples</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(mice)</span>
+<span id="cb2-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(impgrplasso)</span>
+<span id="cb2-3"></span>
+<span id="cb2-4">nh<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Group <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.factor</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(LETTERS[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>)), </span>
+<span id="cb2-5">                        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(LETTERS[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>))))</span>
+<span id="cb2-6"></span>
+<span id="cb2-7">dlist2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mice_by_group</span>(nh, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Group"</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">m =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">maxit =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, </span>
+<span id="cb2-8">                                           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">printFlag =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>))</span>
+<span id="cb2-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Warning: Number of logged events: 25</span></span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="impgrplasso" class="level2">
+<h2 class="anchored" data-anchor-id="impgrplasso">impgrplasso</h2>
+<p>Now that we have a list of imputed data frames, we can use impgrplasso.</p>
+<section id="arguments-1" class="level3">
+<h3 class="anchored" data-anchor-id="arguments-1">Arguments</h3>
+<ul>
+<li><code>impdatlist</code>: A list of data frames generated by multiple imputation.</li>
+<li><code>lams</code>: Either a single lambda value or a vector of lambda values. If one value is provided, the function will perform the MI-LASSO on the full data using only that single lambda value. If a vector of values is provided, the function will perform cross-validation to obtain fold- and imputation-specific as well as averaged loss values and coefficients for each lambda value so that an optimal lambda can be chosen.</li>
+<li><code>outname</code>: A column name for the dependent variable. This can be continuous or binary. In the case of the latter, a LASSO logistic regression will be performed.</li>
+<li><code>prednames</code>: Column names for the independent variables. These should be free of underscores. If dummy variables have already been made for the list of data frames <code>impdatlist</code>, provide those names with underscores between the variable name and the level (e.g., “sex_male”).</li>
+<li><code>forcedin</code>: This is an optional vector of column names that should be a subset of <code>prednames</code> that identifies unpenalized variables to be “forced in” to the model due to them not experiencing any shrinkage.</li>
+<li><code>kfolds</code>: If a vector of lambda values is provided for the argument <code>lams</code>, <code>kfolds</code> provides the number of cross-validation folds for the cross-validation process. This defaults to 10.</li>
+<li><code>kfoldseed</code>: The rows chosen for each k-fold cross-validation are randomly selected once at the beginning of the function and then this selection is used consistently throughout subsequent steps. This value sets a seed for that random process. This defaults to 10.</li>
+<li><code>scalecenter</code>: If TRUE (default), the function will scale and center all variables prior to calculations by subtracting the means of each variable and dividing by the standard deviations. This is recommended for LASSO regression, but one can also perform their own form of standardization in the list of data frames and set this to FALSE if they prefer another standardization approach.</li>
+<li><code>dummify</code>: If TRUE (default), the function will produce dummy variables for all variables in <code>prednames</code> of classes ‘factor’ or ‘character’. This can be set to FALSE if one wants to create dummy variables ahead of time and include them in the list of data frames <code>impdatlist</code>.</li>
+</ul>
+</section>
+<section id="outputs-1" class="level3">
+<h3 class="anchored" data-anchor-id="outputs-1">Outputs</h3>
+<p><code>impgrplasso</code> outputs a list of class ‘impgrplasso’ with the following items:</p>
+<ul>
+<li><code>Coef</code>: If <code>lams</code> is a vector, this is a list of fold-specific data frames containing coefficients for each variable for specific imputed data frames and lambda values. If <code>lams</code> is a single value, this is a single data frame with variable- and imputation-specific coefficients.</li>
+<li><code>MeanCoef</code>: If <code>lams</code> is a vector of length &gt; 1, this is a data frame of mean coefficients across imputed data frames for each variable at each fold and lambda value. If <code>lams</code> is a single value, this is a data frame with mean coefficients across imputed data frames for each variable.</li>
+<li><code>Loss</code>: This appears only if <code>lams</code> is a vector of length &gt; 1, and it is a data frame showing fold- and imputation-specific loss values and means for each value of lambda.</li>
+<li><code>MeanLoss</code>: This appears only if <code>lams</code> is a vector of length &gt; 1, and it is a data frame showing the mean prediction loss for each lambda value.</li>
+<li><code>Model</code>: This appears only if <code>lams</code> is a single value, and it is the grplasso model object run on the full data.</li>
+<li><code>Index</code>: This is the index argument for the grplasso function generated by impgrplasso.</li>
+<li><code>allX</code>: This appears only if <code>lams</code> is a single value, and it is the large stacked matrix of independent variables across imputed data frames generated by <code>impgrplasso</code>.</li>
+</ul>
+<p>A summary method is available for this output, either providing the average prediction loss per lambda value if multiple lambda values were input or the LASSO regression coefficients averaged over imputed data sets if one lambda value was input.</p>
+</section>
+<section id="examples-1" class="level3">
+<h3 class="anchored" data-anchor-id="examples-1">Examples</h3>
+<p>Now that we have our imputed datalist <code>dlist</code>, we can perform two steps to obtain our optimal LASSO model with those multiply imputed datasets. First we need to search for the optimal lambda value over a range of possible values, and so we set <code>lams</code> to be a vector of values, here <code>seq(1, 3, 1)</code>. Notice how we force the covariate <code>"age"</code> to have no shrinkage in the model runs by setting <code>forcedin = "age"</code> for this example. We would “force in” covariates if we strongly believe that they are confounders and that shrinking them would bias our results.</p>
+<p>Once we’ve run the multiple lasso regressions (saved as <code>multiple_milasso</code> here), we use <code>summary()</code> to print out a summary of the optimal lambda value. Notice that the lambda values of 2 and 3 both produce identical numbers of variables kept in the model (i.e., dropping <code>"bmi"</code> and <code>"chl"</code>) in almost every case. Since the variables kept in the model are the “unshrunk” intercept and <code>"age"</code>, the loss values are also identical for those lambda values in those cass. Moving forward, we choose the lambda value with the lowest mean loss, which is 3.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"></span>
+<span id="cb3-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Searching for the best lambda by running multiple LASSO regressions</span></span>
+<span id="cb3-3"></span>
+<span id="cb3-4">multiple_milasso <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">impgrplasso</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">impdatlist =</span> dlist, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lams =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), </span>
+<span id="cb3-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">outname =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hyp"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prednames =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bmi"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"chl"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">forcedin =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>, </span>
+<span id="cb3-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">kfolds =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">kfoldseed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb3-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] "Fold 1"</span></span>
+<span id="cb3-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 1  nr.var: 20 </span></span>
+<span id="cb3-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 2  nr.var: 10 </span></span>
+<span id="cb3-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 3  nr.var: 10 </span></span>
+<span id="cb3-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] "Fold 2"</span></span>
+<span id="cb3-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 1  nr.var: 20 </span></span>
+<span id="cb3-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 2  nr.var: 15 </span></span>
+<span id="cb3-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 3  nr.var: 10 </span></span>
+<span id="cb3-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] "Fold 3"</span></span>
+<span id="cb3-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 1  nr.var: 15 </span></span>
+<span id="cb3-17"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 2  nr.var: 10 </span></span>
+<span id="cb3-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 3  nr.var: 10 </span></span>
+<span id="cb3-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] "Fold 4"</span></span>
+<span id="cb3-20"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 1  nr.var: 15 </span></span>
+<span id="cb3-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 2  nr.var: 15 </span></span>
+<span id="cb3-22"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 3  nr.var: 10</span></span>
+<span id="cb3-23"></span>
+<span id="cb3-24"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(multiple_milasso)</span>
+<span id="cb3-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Mean prediction loss by lambda:</span></span>
+<span id="cb3-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt;         1         2         3 </span></span>
+<span id="cb3-27"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; 0.6866787 0.6736998 0.6708432</span></span></code></pre></div>
+</div>
+<p>We can plot the prediction loss for each lambda value, multiply imputed dataset (“ImpX”), and LASSO regression fold iteration as follows:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggplot2)</span>
+<span id="cb4-2"></span>
+<span id="cb4-3">plotdat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> reshape2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">melt</span>(multiple_milasso<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Loss, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">id.vars =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fold"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lambda"</span>),</span>
+<span id="cb4-4">                          <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure.vars =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Imp"</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>), </span>
+<span id="cb4-5">                          <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">variable.name =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Imp"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">value.name =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"MeanLoss"</span>)</span>
+<span id="cb4-6">plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Fold <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.factor</span>(plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Fold)</span>
+<span id="cb4-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">levels</span>(plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Fold) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fold "</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">levels</span>(plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Fold))</span>
+<span id="cb4-8">plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Lambda <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.factor</span>(plotdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Lambda)</span>
+<span id="cb4-9"></span>
+<span id="cb4-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(plotdat, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x=</span>Imp, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>MeanLoss, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color=</span>Lambda)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> </span>
+<span id="cb4-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> Lambda)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_grid</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Fold) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> </span>
+<span id="cb4-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_brewer</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">palette =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Set1"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ylab</span> (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Mean Loss"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">strip.text =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_text</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>))</span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://drewdstat.github.io/pkgguides/impgrplasso_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We then apply that optimal lambda in a second step to a single, optimal LASSO regression run, which represents our final results. In order to have a single run of the <code>impgrplasso</code> function, we simply set <code>lams</code> to be a single number. Again <code>"age"</code> is “forced in” for this model. The final results are summarized by calling the <code>summary()</code> function.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Now with the optimal lambda determined from the last step, we do a single run</span></span>
+<span id="cb5-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># with that optimal lambda</span></span>
+<span id="cb5-3"></span>
+<span id="cb5-4">singlerun_milasso <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">impgrplasso</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">impdatlist =</span> dlist, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lams =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">outname =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hyp"</span>, </span>
+<span id="cb5-5">                                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prednames =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bmi"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"chl"</span>), </span>
+<span id="cb5-6">                                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">forcedin =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>)</span>
+<span id="cb5-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lambda: 3  nr.var: 15</span></span>
+<span id="cb5-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(singlerun_milasso)</span>
+<span id="cb5-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Mean LASSO regression coefficients:</span></span>
+<span id="cb5-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt;         beta0           age           bmi           chl </span></span>
+<span id="cb5-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; -2.2883132551  1.4702719276  0.0004690066  0.0000000000</span></span></code></pre></div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+ ]]></description>
+  <category>impgrplasso</category>
+  <guid>https://drewdstat.github.io/pkgguides/impgrplasso.html</guid>
+  <pubDate>Sun, 03 Dec 2023 05:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>How to use the wqspt package</title>
+  <dc:creator>Drew Day, James Peng</dc:creator>
+  <link>https://drewdstat.github.io/pkgguides/wqspt.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>Weighted quantile sum (WQS) regression is a statistical technique to evaluate the effect of complex exposure mixtures on an outcome (<a href="https://link.springer.com/article/10.1007/s13253-014-0180-3">Carrico 2015</a>). It is a single-index method which estimates a combined mixture sum effect as well as weights determining each individual mixture component’s contributions to the sum effect. However, the model features a statistical power and Type I error (i.e., false positive) rate tradeoff, as there is a machine learning step to determine the weights that optimize the linear model fit. If the full data is used to estimate both the mixture component weights and the regression coefficients, there is high power but also a high false positive rate since coefficient p-values are calculated for a weighted mixture independent variable with weights that have already been optimized to find a large effect.</p>
+<p>We recently proposed alternative methods based on a permutation test that should reliably allow for both high power and low false positive rate when utilizing WQS regression. The permutation test is a method of obtaining a p-value by simulating the null distribution through permutations of the data. The permutation test algorithm is described more in detail and validated in <a href="https://ehp.niehs.nih.gov/doi/10.1289/EHP10570">Day et al.&nbsp;2022</a>. The version of this permutation test used for a continuous outcome variable has been applied in <a href="https://www.sciencedirect.com/science/article/pii/S0160412021000337">Loftus et al.&nbsp;2021</a>, <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9291724/">Day et al.&nbsp;2021</a>, <a href="https://www.sciencedirect.com/science/article/pii/S0160412021006644">Wallace et al.&nbsp;2022</a>, <a href="https://www.sciencedirect.com/science/article/pii/S0160412022000034">Barrett et al.&nbsp;2022</a>, and <a href="https://www.sciencedirect.com/science/article/pii/S0160412022001726">Freije et al.&nbsp;2022</a>. Another version of the permutation test adapted for WQS logistic regression with a binary outcome variable is applied in <a href="https://www.sciencedirect.com/science/article/pii/S0160412022004214">Loftus et al.&nbsp;2022</a>.</p>
+<section id="about-wqs" class="level2">
+<h2 class="anchored" data-anchor-id="about-wqs">About WQS</h2>
+<p>The goal of WQS regression is to determine whether an exposure mixture is associated with an outcome in a prespecified direction. It fits the following model:</p>
+<p><img src="https://latex.codecogs.com/png.latex?Y%20=%20%5Cbeta_0%20+%20%5Cbeta_1(%5Csum_%7Bi=1%7D%5E%7Bm%7D%20w_i%20%7BX_q%7D_i)%20+%20Z'%5Cgamma"></p>
+<p>Where <img src="https://latex.codecogs.com/png.latex?Y"> is the outcome variable, <img src="https://latex.codecogs.com/png.latex?%5Cbeta_0"> is the intercept, <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> is the coefficient for the weighted quantile sum, <img src="https://latex.codecogs.com/png.latex?%5Csum_%7Bi=1%7D%5E%7Bc%7D%20w_i%20%7BX_q%7D_i"> is the weighted index for the set of quantiled mixture exposures, <img src="https://latex.codecogs.com/png.latex?Z"> is the set of covariates, and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> is the regression coefficients for the covariates.</p>
+<p>A full description of the WQS methodology is described in <a href="https://link.springer.com/article/10.1007/s13253-014-0180-3">Carrico 2015</a>.</p>
+</section>
+<section id="permutation-test" class="level2">
+<h2 class="anchored" data-anchor-id="permutation-test">Permutation Test</h2>
+<p>The WQS regression comprises two steps, for which we typically split the data into a training and validation set. Doing this reduces statistical power since we are training our model on only part of the data. On the other hand, if we skip this training/test split, we can get a skewed representation of uncertainty for the WQS coefficient. A permutation test method gives us a p-value for the uncertainty while also allowing us to use the full dataset for training and validation. This p-value is based on comparing a test value (e.g., coefficient or naive p-values) to iterated values, and so the minimum non-zero p-value that can be detected by the permutation test would be 1 divided by the number of permutation test iterations. For example, if we run 200 iterations, we’d be able to define a p-value of as low as 1/200 = 0.005, and any lower p-value would appear as zero and be interpreted as &lt;0.005.</p>
+<section id="continuous-outcome-algorithm-linear-regression" class="level3">
+<h3 class="anchored" data-anchor-id="continuous-outcome-algorithm-linear-regression">Continuous outcome algorithm (linear regression)</h3>
+<ol type="1">
+<li><p>Run WQS regression without splitting the data, obtaining a WQS coefficient estimate.</p></li>
+<li><p>Regress the outcome on all covariates but not the WQS variable. Then obtain the predicted outcome values and their residuals from this regression.</p></li>
+<li><p>Randomly permute the residual values and add them to the predicted outcome values to get a new outcome variable <img src="https://latex.codecogs.com/png.latex?y*">.</p></li>
+<li><p>Run a WQS regression without splitting the data in which <img src="https://latex.codecogs.com/png.latex?y*"> replaces the vector of observed outcome variables, obtaining an estimate for the WQS coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1%5E*">.</p></li>
+<li><p>Repeat steps 3 and 4.</p></li>
+<li><p>Calculate the p-value by taking the proportion of <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1%5E*"> values greater than the WQS coefficient estimate obtained in Step 1.</p></li>
+</ol>
+</section>
+<section id="binary-or-count-outcome-algorithms-generalized-linear-models-glms" class="level3">
+<h3 class="anchored" data-anchor-id="binary-or-count-outcome-algorithms-generalized-linear-models-glms">Binary or Count outcome algorithms (Generalized linear models (GLMs))</h3>
+<ol type="1">
+<li><p>Regress each of the <img src="https://latex.codecogs.com/png.latex?m"> mixture components on all covariates <img src="https://latex.codecogs.com/png.latex?Z"> and obtain a <img src="https://latex.codecogs.com/png.latex?n"> observations x <img src="https://latex.codecogs.com/png.latex?m"> matrix with columns being the residuals from each of the <img src="https://latex.codecogs.com/png.latex?m"> models (<img src="https://latex.codecogs.com/png.latex?R_%7Bm%7CZ%7D">).</p></li>
+<li><p>Obtain the initial fit (<img src="https://latex.codecogs.com/png.latex?fit1">) by running a “non-split” WQS logistic regression (or other WQS GLM) in which the binary (or count) outcome variable <img src="https://latex.codecogs.com/png.latex?Y"> is regressed on the WQS vector and the covariates, and the mixture matrix used to calculate the WQS vector is the matrix of residuals from Step 1, <img src="https://latex.codecogs.com/png.latex?R_%7Bm%7CZ%7D">.</p></li>
+<li><p>Obtain the reduced fit (<img src="https://latex.codecogs.com/png.latex?fit2">) by running a logistic regression (or other GLM) regressing <img src="https://latex.codecogs.com/png.latex?Y"> on <img src="https://latex.codecogs.com/png.latex?Z">.</p></li>
+<li><p>Calculate the test p-value (<img src="https://latex.codecogs.com/png.latex?p_t">) as <img src="https://latex.codecogs.com/png.latex?1-pchisq(d(fit1)-d(fit2),1)"> where d is the deviance for a given model and <img src="https://latex.codecogs.com/png.latex?pchisq(x,1)"> is the probability density function of the chi-square distribution in which the input <img src="https://latex.codecogs.com/png.latex?x"> is the difference between the deviances of <img src="https://latex.codecogs.com/png.latex?fit1"> and <img src="https://latex.codecogs.com/png.latex?fit2"> and there is 1 degree of freedom.</p></li>
+<li><p>Permute the rows of the <img src="https://latex.codecogs.com/png.latex?R_%7Bm%7CZ%7D"> residual matrix from Step 1 and repeat Step 2 to get a series of null fit1 models (<img src="https://latex.codecogs.com/png.latex?fit1%5E*">) for K iterations. Obtain a distribution of permuted p-values (<img src="https://latex.codecogs.com/png.latex?p%5E*">) using the following formula: <img src="https://latex.codecogs.com/png.latex?p%5E*=1-pchisq(fit1%5E*)-d(fit2),1">).</p></li>
+<li><p>Obtain the number of permuted <img src="https://latex.codecogs.com/png.latex?p%5E*"> less than or equal to the test <img src="https://latex.codecogs.com/png.latex?p_t"> from Step 4 and divide that by the number of iterations K to calculate the permutation test p-value.</p></li>
+</ol>
+<p>Note that the above algorithm has been validated in WQS logistic regressions but not yet for other forms of WQS GLMs (e.g., WQS Poisson regression). However, since deviances can also be derived from those models, the algorithm should work for those other WQS GLMs as well.</p>
+</section>
+</section>
+</section>
+<section id="how-to-use-the-wqspt-package" class="level1">
+<h1>How to use the <code>wqspt</code> package</h1>
+<p>The <code>wqspt</code> package builds from the <code>gWQS</code> package.</p>
+<p>The two main functions of the <code>wqspt</code> package are <code>wqs_pt</code> and <code>wqs_full_perm</code>.</p>
+<section id="wqs_pt" class="level2">
+<h2 class="anchored" data-anchor-id="wqs_pt"><code>wqs_pt</code></h2>
+<section id="arguments" class="level3">
+<h3 class="anchored" data-anchor-id="arguments">Arguments</h3>
+<p><code>wqs_pt</code> uses a <code>gwqs</code> object (from the <code>gWQS</code> <a href="https://CRAN.R-project.org/package=gWQS">package</a>) as an input. To use <code>wqs_pt</code>, we first need to run an initial <em>permutation test reference WQS regression</em> run while setting <code>validation = 0</code>. Note that permutation test can currently take in <code>gwqs</code> inputs with the following families: <code>family = gaussian(link = "identity")</code>, <code>family = binomial()</code> with any accepted link function (e.g., “logit” or “probit”), <code>family = poisson(link = "log")</code>, <code>family = quasipoisson(link = "log")</code>, and <code>family = "negbin"</code> for negative binomial. It is not currently able to accommodate multinomial WQS regression, stratified weights, or WQS interaction terms.</p>
+<p>We will use this <code>gwqs</code> object as the <code>model</code> argument for the <code>wqs_pt</code> function and set the following additional parameters:</p>
+<ul>
+<li><code>boots</code>: Number of bootstraps for the WQS regression run in each permutation test iteration. Note that we may elect a bootstrap count <code>boots</code> lower than that specified in the <code>model</code> object for the sake of efficiency. If we do, <code>wqs_pt</code> will run the iterated WQS regressions for the permutation test with the number of bootstraps defined in <code>boots</code>. If <code>boots</code> is not specified, then the function will use the same bootstrap count in the permutation test iterated WQS regressions as that specified in the main WQS regression.</li>
+<li><code>niter</code>: Number of permutation test iterations.</li>
+<li><code>b1_pos</code>: A logical value that indicates whether beta values should be positive or negative.</li>
+<li><code>rs</code>: A logical value indicating whether the random subset implementation for WQS should be performed (<a href="https://www.tandfonline.com/doi/abs/10.1080/03610918.2019.1577971?journalCode=lssp20">Curtin 2019</a>)</li>
+<li><code>plan_strategy</code>: Evaluation strategy for the plan function (“sequential”, “transparent”, “multisession”, “multicore”, “multiprocess”, “cluster”, or “remote”). See the documentation for the future::plan function for full details.<br>
+</li>
+<li><code>seed</code>: Random seed for the permutation test WQS reference run</li>
+</ul>
+<p>The arguments <code>b1_pos</code> and <code>rs</code> should be consistent with the inputs chosen in the <code>model</code> object. The <code>seed</code> should ideally be consistent with the seed set in the <code>model</code> object, though this is not required.</p>
+</section>
+<section id="outputs" class="level3">
+<h3 class="anchored" data-anchor-id="outputs">Outputs</h3>
+<p>The permutation test returns an object of class <code>wqs_pt</code>, which contains three sublists:</p>
+<ul>
+<li><strong>perm_test</strong>
+<ul>
+<li><strong>pval</strong>: permutation test p-value</li>
+<li><em>Linear WQS regression only</em></li>
+<li><strong>testbeta</strong>: reference WQS coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> value</li>
+<li><strong>betas</strong>: a vector of <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> values from each iteration of the permutation test</li>
+<li><em>WQS GLM only</em></li>
+<li><strong>testpval</strong>: test reference p-value</li>
+<li><strong>permpvals</strong>: p-values from each iteration of the permutation test</li>
+</ul></li>
+<li><strong>gwqs_main</strong>: main gWQS object (same as <code>model</code> input)</li>
+<li><strong>gwqs_perm</strong>: permutation test reference gWQS object (NULL if model <code>family != "gaussian"</code> or if same number of bootstraps are used in permutation test WQS regression runs as in the main run.)</li>
+</ul>
+</section>
+<section id="plotting-method" class="level3">
+<h3 class="anchored" data-anchor-id="plotting-method">Plotting method</h3>
+<p>The <code>wqs_pt</code> class has a <code>wqspt_plot</code> method to help visualize and summarize WQS permutation test results. Plots include (1) a forest plot of the beta WQS coefficient with the naive confidence intervals as well as the permutation test p-value and (2) a heatmap of the WQS weights for each mixture component.</p>
+</section>
+</section>
+<section id="wqs_full_perm" class="level2">
+<h2 class="anchored" data-anchor-id="wqs_full_perm"><code>wqs_full_perm</code></h2>
+<p>The second function <code>wqs_full_perm</code> is a full wrapper which implements the initial WQS regression run using gWQS::gwqs and the permutation test in one function call.</p>
+<p>To use <code>wqs_full_perm</code>, you must specify the same required arguments as needed in the <code>gwqs</code> call. This function can run WQS regressions and the permutation test for the following families: <code>family = gaussian(link = "identity")</code>, <code>family = binomial()</code> with any accepted link function (e.g., “logit” or “probit”), <code>family = poisson(link = "log")</code>, <code>family = quasipoisson(link = "log")</code>, and <code>family = "negbin"</code> for negative binomial. <code>wqs_full_perm</code>is not currently able to accommodate multinomial WQS regression, stratified weights, or WQS interaction terms.</p>
+<p>For the bootstrap count <code>b</code> argument, you must specify <code>b_main</code>,the number of bootstraps for the <em>main WQS regression</em> run, as well as <code>b_perm</code>, the number of bootstraps for the <em>permutation test reference WQS regression</em> run (linear WQS regression only) and each WQS regression iteration of the permutation test. As with before, you can choose to set <code>b_main</code> <img src="https://latex.codecogs.com/png.latex?%3E"> <code>b_perm</code> for the sake of efficiency. Finally, you should indicate the number of desired permutation test runs <code>niter</code>.</p>
+<p>Since the WQS permutation test can be computationally intensive, you can specify <code>stop_if_nonsig = TRUE</code> if you do not wish for the permutation test to proceed if the naive main WQS regression run produces an nonsignificant result (if the p-value is below the <code>stop_thresh</code> argument, for which the default is 0.05). See <em>Recommendations for Use</em> section below.</p>
+<p>The <code>wqs_full_perm</code> returns an object of class <code>wqs_pt</code>, with outputs described above.</p>
+</section>
+<section id="recommendations-for-use" class="level2">
+<h2 class="anchored" data-anchor-id="recommendations-for-use">Recommendations for Use</h2>
+<p>Larger bootstrap counts and numbers of iterations lead to better estimates, though it is unclear how many iterations or bootstraps are needed for a stable estimate. We generally recommend using 1000 bootstraps on the main WQS regression and then performing 200 iterations of 200-boostrap WQS regressions for the permutation test. However, this takes a substantial amount of computational time, and one could also get relatively stable p-values for instance for 100 iterations of 100-boostrap WQS regressions for the permutation test.</p>
+<p>We recommend that users only apply the permutation test in cases where the naive WQS test approaches significance or near-significance. If the naive test produces a non-significant result, then there likely is no reason to run the permutation test, as it will produce a result which is more conservative than the naive method (i.e., it will have a larger p-value). This is the strategy that we have applied in our published papers (<a href="https://www.sciencedirect.com/science/article/pii/S0160412021000337">Loftus et al.&nbsp;2021</a> and <a href="https://www.sciencedirect.com/science/article/pii/S0160412020322856">Day et al.&nbsp;2021</a>).</p>
+</section>
+</section>
+<section id="examples" class="level1">
+<h1>Examples</h1>
+<section id="example-1-using-wqs_pt" class="level2">
+<h2 class="anchored" data-anchor-id="example-1-using-wqs_pt">Example 1 (using <code>wqs_pt</code>)</h2>
+<p>This is an example where the WQS permutation test confirms a significant naive result.</p>
+<p>We first load both the wqspt and gWQS packages.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(gWQS)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(wqspt)</span></code></pre></div>
+</div>
+<p>Then we produce a simulated dataset with the following parameters:</p>
+<ul>
+<li>WQS coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1">: 0.2</li>
+<li>Mixture weights: 0.15 for first 5 components, 0.05 for remaining 5 components</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># simulated dataset</span></span>
+<span id="cb2-2">sim_res1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_sim</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nmix =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb2-3">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ncovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb2-4">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nobs =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>,</span>
+<span id="cb2-5">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruewts =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb2-6">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruecovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, </span>
+<span id="cb2-7">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewqsbeta =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, </span>
+<span id="cb2-8">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truebeta0 =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, </span>
+<span id="cb2-9">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewts =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,</span>
+<span id="cb2-10">                                <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>), </span>
+<span id="cb2-11">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb2-12">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span>
+<span id="cb2-13"></span>
+<span id="cb2-14">sim_data1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sim_res1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Data</span>
+<span id="cb2-15"></span>
+<span id="cb2-16">wqs_form <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">formula</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"y ~ wqs + "</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"C"</span>,<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">collapse=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"+"</span>)))</span></code></pre></div>
+</div>
+<p>Now we run WQS regression on the simulated data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># mixture names</span></span>
+<span id="cb3-2">mix_names1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(sim_data1)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">11</span>]</span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># create reference wqs object</span></span>
+<span id="cb3-5">wqs_main1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gwqs</span>(wqs_form, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mix_name =</span> mix_names1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> sim_data1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">validation =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb3-6">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plan_strategy =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"multicore"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gaussian"</span>, </span>
+<span id="cb3-7">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span></code></pre></div>
+</div>
+<p>Finally, we can perform a permutation test on the WQS object.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># run permutation test</span></span>
+<span id="cb4-2">perm_test_res1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_pt</span>(wqs_main1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">niter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">boots =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span></code></pre></div>
+</div>
+<p>Note that the naive WQS regression produces a significant result for the WQS coefficient (p-value &lt; 0.001).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">main_sum1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(perm_test_res1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>gwqs_main)</span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">main_sum1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>coefficients</span>
+<span id="cb6-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt;                 Estimate Std. Error     t value      Pr(&gt;|t|)</span></span>
+<span id="cb6-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; (Intercept)  1.716588215 0.13195745  13.0086490  7.960621e-36</span></span>
+<span id="cb6-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; wqs          0.271247707 0.02846484   9.5292204  1.183377e-20</span></span>
+<span id="cb6-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C1           0.915972918 0.03235401  28.3109569 1.372658e-129</span></span>
+<span id="cb6-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C2           1.837398541 0.03166084  58.0337820 1.460458e-320</span></span>
+<span id="cb6-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C3          -1.567906582 0.03096844 -50.6291836 9.835375e-277</span></span>
+<span id="cb6-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C4          -0.261844308 0.03025602  -8.6542893  1.987022e-17</span></span>
+<span id="cb6-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C5          -0.350600283 0.03111404 -11.2682323  8.594271e-28</span></span>
+<span id="cb6-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C6           0.017181769 0.03214707   0.5344739  5.931340e-01</span></span>
+<span id="cb6-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C7           0.028020482 0.03007333   0.9317386  3.516993e-01</span></span>
+<span id="cb6-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C8           0.006594393 0.03040937   0.2168540  8.283669e-01</span></span>
+<span id="cb6-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C9          -0.075174923 0.03029635  -2.4813194  1.325512e-02</span></span>
+<span id="cb6-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C10         -0.003960226 0.03079737  -0.1285898  8.977084e-01</span></span></code></pre></div>
+</div>
+<p>The permutation test confirms the significance of this result.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">perm_test_res1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>perm_test<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pval</span>
+<span id="cb7-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] 0</span></span></code></pre></div>
+</div>
+<p>Here are the summary plots:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqspt_plot</span>(perm_test_res1)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>FullPlot</span>
+<span id="cb8-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Warning in get_plot_component(plot, "guide-box"): Multiple components found;</span></span>
+<span id="cb8-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; returning the first one. To return all, use `return_all = TRUE`.</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://drewdstat.github.io/pkgguides/wqspt_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="example-2-using-wqs_pt" class="level2">
+<h2 class="anchored" data-anchor-id="example-2-using-wqs_pt">Example 2 (using <code>wqs_pt</code>)</h2>
+<p>This is an example where the WQS permutation test goes against a (false positive) significant naive result.</p>
+<p>We produce a simulated dataset with the following parameters:</p>
+<ul>
+<li>WQS coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1">: 0</li>
+<li>Mixture weights: 0.15 for first 5 components, 0.05 for remaining 5 components</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">sim_res2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_sim</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nmix =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb9-2">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ncovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb9-3">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nobs =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>,</span>
+<span id="cb9-4">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruewts =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb9-5">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruecovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, </span>
+<span id="cb9-6">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewqsbeta =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, </span>
+<span id="cb9-7">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truebeta0 =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>, </span>
+<span id="cb9-8">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewts =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,</span>
+<span id="cb9-9">                                <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>), </span>
+<span id="cb9-10">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb9-11">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span>
+<span id="cb9-12"></span>
+<span id="cb9-13">sim_data2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sim_res2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Data</span></code></pre></div>
+</div>
+<p>Now we run WQS regression as well as the permutation test on the simulated data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># mixture names</span></span>
+<span id="cb10-2">mix_names2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(sim_data2)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">11</span>]</span>
+<span id="cb10-3"></span>
+<span id="cb10-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># create reference wqs object</span></span>
+<span id="cb10-5">wqs_main2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gwqs</span>(wqs_form, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mix_name =</span> mix_names2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> sim_data2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">validation =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb10-6">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plan_strategy =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"multicore"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gaussian"</span>, </span>
+<span id="cb10-7">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span>
+<span id="cb10-8"></span>
+<span id="cb10-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># run permutation test</span></span>
+<span id="cb10-10">perm_test_res2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_pt</span>(wqs_main2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">niter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">boots =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span></code></pre></div>
+</div>
+<p>Note that the naive WQS regression produces a significant result for the WQS coefficient (p-value = 0.002).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">main_sum2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(perm_test_res2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>gwqs_main)</span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">main_sum2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>coefficients</span>
+<span id="cb12-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt;                 Estimate Std. Error     t value      Pr(&gt;|t|)</span></span>
+<span id="cb12-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; (Intercept) -0.242259146 0.12595439  -1.9233879  5.471846e-02</span></span>
+<span id="cb12-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; wqs          0.084337304 0.02709982   3.1120982  1.910997e-03</span></span>
+<span id="cb12-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C1           0.916079837 0.03236572  28.3040164 1.530151e-129</span></span>
+<span id="cb12-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C2           1.836539134 0.03166066  58.0069707 2.079028e-320</span></span>
+<span id="cb12-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C3          -1.568725043 0.03099602 -50.6105377 1.279103e-276</span></span>
+<span id="cb12-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C4          -0.260464045 0.03027002  -8.6046855  2.973949e-17</span></span>
+<span id="cb12-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C5          -0.350431787 0.03114219 -11.2526386  1.005351e-27</span></span>
+<span id="cb12-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C6           0.016352846 0.03216484   0.5084075  6.112811e-01</span></span>
+<span id="cb12-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C7           0.027852144 0.03008416   0.9258077  3.547720e-01</span></span>
+<span id="cb12-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C8           0.006968031 0.03042095   0.2290537  8.188746e-01</span></span>
+<span id="cb12-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C9          -0.074755354 0.03031780  -2.4657251  1.384261e-02</span></span>
+<span id="cb12-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; C10         -0.003661685 0.03081250  -0.1188377  9.054281e-01</span></span></code></pre></div>
+</div>
+<p>The permutation test, however, repudiates the significance of these plots (p = 0.12).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">perm_test_res2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>perm_test<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pval</span>
+<span id="cb13-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; [1] 0.12</span></span></code></pre></div>
+</div>
+<p>Here are the summary plots:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqspt_plot</span>(perm_test_res2)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>FullPlot</span>
+<span id="cb14-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Warning in get_plot_component(plot, "guide-box"): Multiple components found;</span></span>
+<span id="cb14-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; returning the first one. To return all, use `return_all = TRUE`.</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://drewdstat.github.io/pkgguides/wqspt_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="example-3-using-wqs_full_perm" class="level2">
+<h2 class="anchored" data-anchor-id="example-3-using-wqs_full_perm">Example 3 (using <code>wqs_full_perm</code>)</h2>
+<p>Using the same data as in Example 1, we run the WQS regression with permutation test using the full wrapper <code>wqs_full_perm</code> call.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">perm_test_res3 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_full_perm</span>(wqs_form,</span>
+<span id="cb15-2">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> sim_data1,</span>
+<span id="cb15-3">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mix_name =</span> mix_names1,</span>
+<span id="cb15-4">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb15-5">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b_main =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>,</span>
+<span id="cb15-6">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b_perm =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>,</span>
+<span id="cb15-7">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T,</span>
+<span id="cb15-8">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">niter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>,</span>
+<span id="cb15-9">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>,</span>
+<span id="cb15-10">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plan_strategy =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"multicore"</span>)</span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqspt_plot</span>(perm_test_res3)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>FullPlot</span>
+<span id="cb16-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Warning in get_plot_component(plot, "guide-box"): Multiple components found;</span></span>
+<span id="cb16-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; returning the first one. To return all, use `return_all = TRUE`.</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://drewdstat.github.io/pkgguides/wqspt_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="example-4-using-wqs_full_perm-on-binary-outcome-example" class="level2">
+<h2 class="anchored" data-anchor-id="example-4-using-wqs_full_perm-on-binary-outcome-example">Example 4 (using <code>wqs_full_perm</code> on binary outcome example)</h2>
+<p>This is an example in which we apply the logistic regression version of the WQS permutation test.</p>
+<p>We produce a simulated dataset with the following parameters:</p>
+<ul>
+<li>WQS coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1">: 0.4</li>
+<li>Mixture weights: 0.15 for first 5 components, 0.05 for remaining 5 components</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">sim_res3 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_sim</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nmix =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb17-2">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ncovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb17-3">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nobs =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>,</span>
+<span id="cb17-4">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruewts =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb17-5">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ntruecovrt =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, </span>
+<span id="cb17-6">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewqsbeta =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.4</span>, </span>
+<span id="cb17-7">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truebeta0 =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>, </span>
+<span id="cb17-8">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">truewts =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,</span>
+<span id="cb17-9">                                <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>), </span>
+<span id="cb17-10">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, </span>
+<span id="cb17-11">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"binomial"</span>,</span>
+<span id="cb17-12">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>)</span>
+<span id="cb17-13"></span>
+<span id="cb17-14">sim_data3 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sim_res3<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Data</span>
+<span id="cb17-15"></span>
+<span id="cb17-16">perm_test_res4 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqs_full_perm</span>(wqs_form,</span>
+<span id="cb17-17">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> sim_data3,</span>
+<span id="cb17-18">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mix_name =</span> mix_names1,</span>
+<span id="cb17-19">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb17-20">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b_main =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>,</span>
+<span id="cb17-21">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b_perm =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>,</span>
+<span id="cb17-22">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b1_pos =</span> T,</span>
+<span id="cb17-23">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">niter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>,</span>
+<span id="cb17-24">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>,</span>
+<span id="cb17-25">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plan_strategy =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"multicore"</span>,</span>
+<span id="cb17-26">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"binomial"</span>)</span></code></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">wqspt_plot</span>(perm_test_res4)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>FullPlot</span>
+<span id="cb18-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Warning in get_plot_component(plot, "guide-box"): Multiple components found;</span></span>
+<span id="cb18-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; returning the first one. To return all, use `return_all = TRUE`.</span></span></code></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://drewdstat.github.io/pkgguides/wqspt_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="references" class="level1">
+<h1>References</h1>
+<ul>
+<li><p>Barrett, E. S., Corsetti, M., Day, D., Thurston, S. W., Loftus, C. T., Karr, C. J., … &amp; Sathyanarayana, S. (2022). Prenatal phthalate exposure in relation to placental corticotropin releasing hormone (pCRH) in the CANDLE cohort. Environment International, 160, 107078.</p></li>
+<li><p>Carrico, C., Gennings, C., Wheeler, D. C., &amp; Factor-Litvak, P. (2015). Characterization of weighted quantile sum regression for highly correlated data in a risk analysis setting. Journal of Agricultural, Biological, and Environmental Statistics, 20(1), 100-120.</p></li>
+<li><p>Curtin, P., Kellogg, J., Cech, N., &amp; Gennings, C. (2019). A random subset implementation of weighted quantile sum (WQSRS) regression for analysis of high-dimensional mixtures. Communications in Statistics-Simulation and Computation, 50(4), 1119-1134.</p></li>
+<li><p>Day, D. B., Collett, B. R., Barrett, E. S., Bush, N. R., Swan, S. H., Nguyen, R. H., … &amp; Sathyanarayana, S. (2021). Phthalate mixtures in pregnancy, autistic traits, and adverse childhood behavioral outcomes. Environment International, 147, 106330.</p></li>
+<li><p>Day, D. B., Sathyanarayana, S., LeWinn, K. Z., Karr, C. J., Mason, W. A., &amp; Szpiro, A. A. (2022). A permutation test-based approach to strengthening inference on the effects of environmental mixtures: comparison between single index analytic methods. Environmental Health Perspectives, 130(8).</p></li>
+<li><p>Freije, S. L., Enquobahrie, D. A., Day, D. B., Loftus, C., Szpiro, A. A., Karr, C. J., … &amp; Sathyanarayana, S. (2022). Prenatal exposure to polycyclic aromatic hydrocarbons and gestational age at birth. Environment International, 164, 107246.</p></li>
+<li><p>Loftus, C. T., Bush, N. R., Day, D. B., Ni, Y., Tylavsky, F. A., Karr, C. J., … &amp; LeWinn, K. Z. (2021). Exposure to prenatal phthalate mixtures and neurodevelopment in the Conditions Affecting Neurocognitive Development and Learning in Early childhood (CANDLE) study. Environment International, 150, 106409.</p></li>
+<li><p>Loftus, C., Szpiro, A. A., Workman, T., Wallace, E. R., Hazlehurst, M. F., Day, D. B., … &amp; Karr, C. J. (2022). Maternal exposure to urinary polycyclic aromatic hydrocarbons (PAH) in pregnancy and childhood asthma in a pooled multi-cohort study. Environment International, 170, p.107494.</p></li>
+<li><p>Renzetti, S., Curtin, P., Just, A. C., Bello, G., &amp; Gennings, C. (2021). ‘gWQS: Generalized Weighted Quantile Sum Regression’. https://CRAN.R-project.org/package=gWQS.</p></li>
+<li><p>Wallace, E. R., Ni, Y., Loftus, C. T., Sullivan, A., Masterson, E., Szpiro, A., … &amp; Sathyanarayana, S. (2022). Prenatal urinary metabolites of polycyclic aromatic hydrocarbons and toddler cognition, language, and behavior. Environment International, 159, 107039.</p></li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>wqspt</category>
+  <guid>https://drewdstat.github.io/pkgguides/wqspt.html</guid>
+  <pubDate>Thu, 26 May 2022 04:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>

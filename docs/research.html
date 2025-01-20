@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Projects – Drew Day’s Website and Blog</title>
+<title>My Research – Drew Day’s Website and Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -33,7 +33,6 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
@@ -92,7 +91,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./research.html"> 
+    <a class="nav-link active" href="./research.html" aria-current="page"> 
 <span class="menu-text">My Research</span></a>
   </li>  
   <li class="nav-item">
@@ -125,45 +124,78 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#project-1" id="toc-project-1" class="nav-link active" data-scroll-target="#project-1">Project 1</a></li>
-  <li><a href="#project-2" id="toc-project-2" class="nav-link" data-scroll-target="#project-2">Project 2</a></li>
-  <li><a href="#project-3" id="toc-project-3" class="nav-link" data-scroll-target="#project-3">Project 3</a></li>
+  <li><a href="#about-me" id="toc-about-me" class="nav-link active" data-scroll-target="#about-me">About Me</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
+
+
+
+<div class="quarto-about-trestles">
+  <div class="about-entity">
+    <img src="img/PAS2022_lecture.jpg" class="about-image
+  rounded " style="width: 15em;">
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Projects</h1>
+<h1 class="title">My Research</h1>
+</div>
+<div class="quarto-title-meta">
+  </div>
+</header>
+    <div class="about-links">
+  <a href="https://scholar.google.com/citations?user=DmpanVEAAAAJ&amp;hl=en" class="about-link" rel="" target="">
+    <i class="bi bi-google"></i>
+     <span class="about-link-text">Google Scholar</span>
+  </a>
+  <a href="/extras/DrewDay-Academic-CV-2025Q1.pdf" class="about-link" rel="" target="">
+    <i class="bi bi-filetype-pdf"></i>
+     <span class="about-link-text">Full CV</span>
+  </a>
+</div>
+  </div>
+  <div class="about-contents"><div id="background">
+<section id="about-me" class="level3">
+<h3 data-anchor-id="about-me">About Me</h3>
+<p>I’m an epidemiologist and statistician formerly working in chemical safety and chronic disease research at the Seattle Children’s Research Institute, and now looking for opportunities in pharmaceutical research and development.</p>
+<p>My primary experience is in both developing and applying statistical methods to investigate the determinants of chronic disease. I have training in Bayesian and frequentist statistics, machine learning, epidemiology, toxicology, immunology, bioinformatics (transcriptomics, scRNA, metabolomics, etc.), endocrinology, and neurology.</p>
+</section>
+</div></div>
+</div>
+
+<div id="maintext">
+<section id="methods-developmentteaching" class="level3">
+<h3 data-anchor-id="methods-developmentteaching">Methods Development/Teaching</h3>
+<ul>
+<li>R package <a href="https://cran.r-project.org/web/packages/wqspt/index.html">wqspt</a>: Using a novel permutation test method to improve the statistical properties of the weighted quantile sum regression, which determines the additive combined association of multiple exposures with a single outcome.</li>
+<li>R package <a href="https://www.github.com/drewdstat/ResidualKMeans">ResidualKMeans</a>: Method for unsupervised clustering of mixed type continuous and categorical data while controlling for structure induced by a grouping variable such as cohort in a multi-cohort study.</li>
+<li>R package <a href="https://www.github.com/drewdstat/impgrplasso">impgrplasso</a>: Combining methods involving a group LASSO penalty for multiply imputed data into one function to perform LASSO regression on data with missingness.</li>
+<li>R package <a href="https://www.github.com/drewdstat/DrewDayRFunctions">DrewDayRFunctions</a>: Functions with relevance for epidemiologic analyses including functions to performing many regressions, nonlinear mediation, nonlinear regressions, and exploratory data analysis.</li>
+<li>R teaching <a href="https://htmlpreview.github.io/?https://github.com/drewdstat/TeachingR/blob/main/vignettes/IntrotoR.html">Introduction to R</a>: Document to teach a student just starting with R to go from zero to developing useful functions and loops.</li>
+</ul>
+</section>
+<section id="research-interests" class="level3">
+<h3 data-anchor-id="research-interests">Research Interests</h3>
+<ul>
+<li>Omics prediction of chronic disease: Using omics data to predict chronic disease patterns to discover shared mechanisms (<a href="https://ehp.niehs.nih.gov/doi/abs/10.1289/isee.2020.virtual.P-0298">Placental gene transcription and child cognitive and behavioral outcomes (abstract)</a>)</li>
+<li>Multi-outcome health profiles: Using phenotypes of disease outcome co-occurrence to indentify risks and mechanisms shared between seemingly unrelated diseases (<a href="https://www.sciencedirect.com/science/article/pii/S0160412024000722">Residual K-means paper</a>) (see also my experiments with autoencoders at <a href="https://www.github.com/drewdstat/VAECM_Final">VAECM_Final</a>)</li>
+<li>Mixture exposures: Advancing mixture exposure modelling to understand the combined health impact of common environmental factors (<a href="https://ehp.niehs.nih.gov/doi/full/10.1289/EHP10570">Weighted Quantile Sum regression with Permutation Test (WQSPT) methods paper</a>)</li>
+<li>Environmental Epidemiology: exploring associations between chemical and other stressor exposures and later life chronic disease:
+<ul>
+<li><a href="https://www.sciencedirect.com/science/article/pii/S0013935124006935?casa_token=wzgW30Qb8bEAAAAA:50wLGHD3iRJEN1ZjxbK4xHbpBp5LeLE_0rLycowEXj6OFPNWCpay_hmYx06gJY8YiYvZaylhWWY">Childhood melamine and kidney health outcomes</a></li>
+<li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9291724/">Prenatal phthalate plasticizers and child behavioral disorders</a></li>
+<li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7759302/">Prenatal maternal sex hormones and child behavioral disorders</a></li>
+<li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5710579/">Ozone air pollution and cardiopulmonary health in adults</a></li>
+<li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5903943/">Electrostatic precipitator air filtration and cardiopulmonary health in adults</a></li>
+</ul></li>
+</ul>
+</section>
 </div>
 
 
 
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<section id="project-1" class="level2">
-<h2 class="anchored" data-anchor-id="project-1">Project 1</h2>
-</section>
-<section id="project-2" class="level2">
-<h2 class="anchored" data-anchor-id="project-2">Project 2</h2>
-</section>
-<section id="project-3" class="level2">
-<h2 class="anchored" data-anchor-id="project-3">Project 3</h2>
-
-
-</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -186,13 +218,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
   }
   toggleBodyColorPrimary();  
-  const icon = "";
-  const anchorJS = new window.AnchorJS();
-  anchorJS.options = {
-    placement: 'right',
-    icon: icon
-  };
-  anchorJS.add('.anchored');
   const isCodeAnnotation = (el) => {
     for (const clz of el.classList) {
       if (clz.startsWith('code-annotation-')) {                     

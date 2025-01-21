@@ -1,0 +1,39 @@
+.nav-pills .panel-tabset {
+    display: flex;
+}
+
+.nav.nav-tabs {
+    display: flex !important;
+    flex-direction: column;
+    flex: 0 0 auto;
+}
+
+.nav-pills .panel-tabset .nav-tabs .nav-item {
+    width: max-content;
+    height: 50px;
+    display: contents;
+}
+
+@media (min-width: 30em) { /*30em*/
+
+  .panel-tabset {
+  	display: grid;
+  	grid-gap: 2em;
+  	grid-template-columns: 25% 75%;
+  }
+  
+  .panel-tabset-tabby {
+    border-bottom: none !important;
+  	border-right: 1px solid #bbb; 
+  }
+  
+  .panel-tabset [role=tab][aria-selected=true] {
+    background-color: #ddd;
+    border: 1px solid #bbb !important;
+  }
+  
+  h3 {
+  	margin-top: 0;
+  }
+  
+}

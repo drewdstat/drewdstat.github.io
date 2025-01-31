@@ -1,5 +1,7 @@
 ---
 title: "Mountaineering"
+stats:
+  id: stats
 about:
   id: background
   template: trestles
@@ -8,19 +10,16 @@ about:
     - text: Peakbagger
       icon: image-alt
       href: https://www.peakbagger.com/climber/climber.aspx?cid=44119
-stats:
-  id: stats
 ---
 
-:::{#background .cr-section}
+:::{#background}
 
 ## Background
 
-I developed a love for hiking after my first stint living and studying in China. I didn't really start hiking much until grad school in North Carolina and then afterwords during nearly a year of traveling the world. My five and a half years in Seattle really got me into more challenging and technical mountaineering. Now that I live on the East Coast, my mountaineering and hiking have slowed, but I'm still exploring what the eastern US has to offer. 
+I developed a love for hiking after my first stint living and studying in China. I didn't really start hiking much until grad school in North Carolina and then afterwords during nearly a year of traveling the world. My five and a half years in Seattle really got me into more challenging and technical mountaineering. Now that I live on the East Coast, my mountaineering and hiking have slowed, but I'm still exploring what the eastern US has to offer.
 
-See my [Peakbagger page linked here](https://www.peakbagger.com/climber/climblistc.aspx?cid=44119) for more information on my summits, and feel free to add me as a friend on there and reach out if you want to hike in the Northeast!
+See my Peakbagger page linked here for more information on my summits, and feel free to add me as a friend on there and reach out if you want to hike in the Northeast!
 
-## Peakbagging Stats
 :::
 
 :::{#stats .panel-tabset}
@@ -33,17 +32,17 @@ See my [Peakbagger page linked here](https://www.peakbagger.com/climber/climblis
 library(leaflet)
 mtn <- read.csv("extras/PeakbaggerDrewDayAscentList.csv")
 mtn$AscentDate <- as.Date(gsub("^'", "", mtn$AscentDate))
-mtn_map <- mtn[which(!is.na(mtn$long)), ]
-mybins <- c(0, 2000, 5000, 10000, 14000, 20000)
+mtn_map <- mtn[which(!is.na(mtn$long) & !mtn$AscentType == "UnSuc"), ]
+mybins <- c(0, 2000, 5000, 10000, 14000, 18000)
 mypalette <- colorBin(palette="YlOrBr", domain=mtn_map$ElevationFeet, 
                       na.color="transparent", bins=mybins)
 
-mytext <- paste0(
+mytext <- paste0("Name: ", mtn_map$PeakPointName, "<br/>",
    "Elevation: ", mtn_map$ElevationFeet, "<br/>", 
    "Prominence: ", mtn_map$ProminenceFeet, "<br/>", 
    "Date: ", mtn_map$AscentDate, "<br/>", 
    'URL: <a href="https://www.peakbagger.com/climber/ascent.aspx?aid=', 
-   mtn_map$aid, '/">Peakbagger</a>') %>%
+   mtn_map$aid, '", target=\"_blank\">Peakbagger Report</a>') %>%
   lapply(htmltools::HTML)
 
 m <- leaflet(mtn_map) %>% 
@@ -53,11 +52,10 @@ m <- leaflet(mtn_map) %>%
                    options = tileOptions(opacity = 0.8)) %>%
   addCircleMarkers(~long, ~lat, fillColor = ~mypalette(ElevationFeet), 
                    fillOpacity = 0.9, color = "white", radius = 8, 
-                   stroke = FALSE, label = mytext,
-    labelOptions = labelOptions(interactive = FALSE, style = list(
+                   stroke = FALSE, popup = mytext,
+    popupOptions = popupOptions(style = list(autoClose = FALSE, #interactive = FALSE, 
       "font-weight" = "normal", padding = "3px 8px"), textsize = "13px", 
-      direction = "auto", noHide = FALSE), 
-    popupOptions = popupOptions(autoClose = FALSE)
+      direction = "auto", noHide = FALSE)
   ) %>%
   addLegend(pal=mypalette, values=~ElevationFeet, opacity=0.9, 
             title = "Elevation (ft)", position = "bottomright" )
@@ -72,8 +70,8 @@ m
 #| code-summary: "Source Code"
 
 mtn_prom <- mtn
-mtn_prom <- mtn_prom[!grepl("Attempt", mtn_prom$PeakPointName), ]
-mtn_prom <- mtn[which(!duplicated(mtn$PeakPointName)), ]
+mtn_prom <- mtn_prom[which(!grepl("Attempt", mtn_prom$PeakPointName)), ]
+mtn_prom <- mtn_prom[which(!duplicated(mtn_prom$PeakPointName)), ]
 mtn_prom[which(is.na(mtn_prom$ProminenceFeet)), "ProminenceFeet"] <- 0
 mtn_prom$PeakPointName <-
   factor(mtn_prom$PeakPointName, levels = mtn_prom[
@@ -120,3 +118,4 @@ plot_ly(mtn_agg, x = ~Location, y = ~VertUpFt, type = 'bar') %>%
 ```
 
 :::
+

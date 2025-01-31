@@ -1,0 +1,17 @@
+{
+  "hash": "3dd3a93b19f598b50aace5175385a885",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Experiments with EconML and Causal Learning: Customer Segmentation\"\nauthor: \"Drew Day\"\ndate: \"1/31/2025\"\ncategories:\n  - Health economics\nformat: \n  html: \n    page-layout: full\n    code-fold: true\n    code-summary: \"Source Code\"\n    toc: true\nexecute:\n  freeze: auto\neditor: visual\n---\n\n\n\n\n\n\n## Introduction\n\nThis document will cover practical examples of the use of causal machine learning in the context of business strategy. It draws heavily from and then expands on the \"Customer Scenarios\" included in the [EconML Python package documentation](https://github.com/py-why/EconML/tree/main/notebooks/CustomerScenarios).\n\n## Case Study 1: Customer Segmentation\n\nWhen developing a strategy to \n\n### Getting started: Importing and cleaning data\n\n\n\n\n::: {.cell}\n\n```{.python .cell-code}\n#key imports\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.ensemble import GradientBoostingRegressor\nfrom econml.dml import LinearDML, CausalForestDML\nfrom econml.cate_interpreter import SingleTreeCateInterpreter, SingleTreePolicyInterpreter\n\n#Load data\nfile_url = \"https://msalicedatapublic.z5.web.core.windows.net/datasets/Pricing/pricing_sample.csv\"\ntrain_data = pd.read_csv(file_url)\n\ntrain_data.head()\n```\n\n::: {.cell-output .cell-output-stdout}\n\n```\n   account_age  age  avg_hours  ...    income  price     demand\n0            3   53   1.834234  ...  0.960863    1.0   3.917117\n1            5   54   7.171411  ...  0.732487    1.0  11.585706\n2            3   33   5.351920  ...  1.130937    1.0  24.675960\n3            2   34   6.723551  ...  0.929197    1.0   6.361776\n4            4   30   2.448247  ...  0.533527    0.8  12.624123\n\n[5 rows x 11 columns]\n```\n\n\n:::\n:::\n\n::: {.cell}\n\n```{.python .cell-code}\n#Define estimator inputs\nY = train_data[\"demand\"] #main outcome\nT = train_data[\"price\"] #treatment\nX = train_data[[\"income\"]] #features\nW = train_data.drop(columns = [\"demand\", \"price\", \"income\"]) #covariates\n\n# Get test data\nX_test = np.linspace(0, 5, 100).reshape(-1, 1)\nX_test_data = pd.DataFrame(X_test, columns = [\"income\"])\n```\n:::",
+    "supporting": [
+      "econml_customerseg_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

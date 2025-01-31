@@ -1,0 +1,63 @@
+---
+title: "Experiments with EconML and Causal Learning: Customer Segmentation"
+author: "Drew Day"
+date: "1/31/2025"
+categories:
+  - Health economics
+format: 
+  html: 
+    page-layout: full
+    code-fold: true
+    code-summary: "Source Code"
+    toc: true
+execute:
+  freeze: auto
+editor: visual
+---
+
+```{r setup}
+#| include: false
+
+library(reticulate)
+reticulate::use_condaenv("C:/Users/dday6/miniconda3/envs/pytorch_env", 
+                         required = TRUE)
+```
+
+## Introduction
+
+This document will cover practical examples of the use of causal machine learning in the context of business strategy. It draws heavily from and then expands on the "Customer Scenarios" included in the [EconML Python package documentation](https://github.com/py-why/EconML/tree/main/notebooks/CustomerScenarios).
+
+## Case Study 1: Customer Segmentation
+
+When developing a strategy to 
+
+### Getting started: Importing and cleaning data
+
+```{python import}
+#key imports
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.ensemble import GradientBoostingRegressor
+from econml.dml import LinearDML, CausalForestDML
+from econml.cate_interpreter import SingleTreeCateInterpreter, SingleTreePolicyInterpreter
+
+#Load data
+file_url = "https://msalicedatapublic.z5.web.core.windows.net/datasets/Pricing/pricing_sample.csv"
+train_data = pd.read_csv(file_url)
+
+train_data.head()
+```
+
+```{python}
+#Define estimator inputs
+Y = train_data["demand"] #main outcome
+T = train_data["price"] #treatment
+X = train_data[["income"]] #features
+W = train_data.drop(columns = ["demand", "price", "income"]) #covariates
+
+# Get test data
+X_test = np.linspace(0, 5, 100).reshape(-1, 1)
+X_test_data = pd.DataFrame(X_test, columns = ["income"])
+```

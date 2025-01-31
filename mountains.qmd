@@ -12,23 +12,111 @@ stats:
   id: stats
 ---
 
-:::{#background}
+:::{#background .cr-section}
 
 ## Background
 
 I developed a love for hiking after my first stint living and studying in China. I didn't really start hiking much until grad school in North Carolina and then afterwords during nearly a year of traveling the world. My five and a half years in Seattle really got me into more challenging and technical mountaineering. Now that I live on the East Coast, my mountaineering and hiking have slowed, but I'm still exploring what the eastern US has to offer. 
 
-See my Peakbagger page linked here for more information on my summits, and feel free to add me as a friend on there and reach out if you want to hike in the Northeast!
+See my [Peakbagger page linked here](https://www.peakbagger.com/climber/climblistc.aspx?cid=44119) for more information on my summits, and feel free to add me as a friend on there and reach out if you want to hike in the Northeast!
+
+## Peakbagging Stats
 :::
 
-<!-- :::{#stats} -->
+:::{#stats .panel-tabset}
 
-<!-- ## Peakbagging Stats -->
+### Map
 
-<!-- ```{html} -->
+```{r}
+#| code-fold: true
+#| code-summary: "Source Code"
+library(leaflet)
+mtn <- read.csv("extras/PeakbaggerDrewDayAscentList.csv")
+mtn$AscentDate <- as.Date(gsub("^'", "", mtn$AscentDate))
+mtn_map <- mtn[which(!is.na(mtn$long)), ]
+mybins <- c(0, 2000, 5000, 10000, 14000, 20000)
+mypalette <- colorBin(palette="YlOrBr", domain=mtn_map$ElevationFeet, 
+                      na.color="transparent", bins=mybins)
 
-<!-- ``` -->
+mytext <- paste0(
+   "Elevation: ", mtn_map$ElevationFeet, "<br/>", 
+   "Prominence: ", mtn_map$ProminenceFeet, "<br/>", 
+   "Date: ", mtn_map$AscentDate, "<br/>", 
+   'URL: <a href="https://www.peakbagger.com/climber/ascent.aspx?aid=', 
+   mtn_map$aid, '/">Peakbagger</a>') %>%
+  lapply(htmltools::HTML)
 
+m <- leaflet(mtn_map) %>% 
+  #addTiles(options = tileOptions(opacity = 0.7))  %>% 
+  setView(lat=0, lng=0 , zoom=2) %>%
+  addProviderTiles("Esri.WorldImagery", layerId = "base", 
+                   options = tileOptions(opacity = 0.8)) %>%
+  addCircleMarkers(~long, ~lat, fillColor = ~mypalette(ElevationFeet), 
+                   fillOpacity = 0.9, color = "white", radius = 8, 
+                   stroke = FALSE, label = mytext,
+    labelOptions = labelOptions(interactive = FALSE, style = list(
+      "font-weight" = "normal", padding = "3px 8px"), textsize = "13px", 
+      direction = "auto", noHide = FALSE), 
+    popupOptions = popupOptions(autoClose = FALSE)
+  ) %>%
+  addLegend(pal=mypalette, values=~ElevationFeet, opacity=0.9, 
+            title = "Elevation (ft)", position = "bottomright" )
 
-<!-- <iframe src="dashboards/peakdash.html" onload='javascript:(function(o){o.style.height=o.contentWindow.document.body.scrollHeight+"px";}(this));' style="height:200px;width:100%;border:none;overflow:hidden;"></iframe> -->
-<!-- ::: -->
+m
+```
+
+### Prominence
+
+```{r}
+#| code-fold: true
+#| code-summary: "Source Code"
+
+mtn_prom <- mtn
+mtn_prom <- mtn_prom[!grepl("Attempt", mtn_prom$PeakPointName), ]
+mtn_prom <- mtn[which(!duplicated(mtn$PeakPointName)), ]
+mtn_prom[which(is.na(mtn_prom$ProminenceFeet)), "ProminenceFeet"] <- 0
+mtn_prom$PeakPointName <-
+  factor(mtn_prom$PeakPointName, levels = mtn_prom[
+    with(mtn_prom, order(ElevationFeet)), "PeakPointName"])
+
+suppressPackageStartupMessages(library(plotly))
+plot_ly(mtn_prom, y = ~PeakPointName, x = ~ElevationFeet, type = 'bar', 
+        marker = list(color = 'rgb(55, 83, 109)'), name = "Elevation") %>% 
+  add_trace(x = ~ ProminenceFeet, name = "Prominence", 
+            marker = list(color = 'rgb(26, 118, 255)')) %>% 
+  layout(title = 'Elevation and Prominence of Summited Peaks', 
+         yaxis = list(title = "", tickfont = list(
+           size = 14, color = 'rgb(107, 107, 107)')),
+         xaxis = list(title = 'Elevation (ft)', titlefont = list(
+             size = 16, color = 'rgb(107, 107, 107)'),
+             tickfont = list(size = 14,
+             color = 'rgb(107, 107, 107)')),
+         legend = list(x = 10, y = 1, bgcolor = 'rgba(255, 255, 255, 0)', 
+                       bordercolor = 'rgba(255, 255, 255, 0)'),
+         barmode = 'group', bargap = 0.15)
+```
+
+### Elevation Gain
+
+```{r}
+#| code-fold: true
+#| code-summary: "Source Code"
+
+suppressPackageStartupMessages(library(dplyr))
+mtn_agg <- aggregate(VertUpFt ~ Location, mtn, 
+                     function(x) sum(x, na.rm = TRUE), na.action = NULL)
+mtn_agg <- mtn_agg %>% filter(VertUpFt > 0)
+mtn_agg$Location <- factor(mtn_agg$Location, levels = c(
+  mtn_agg[with(mtn_agg, order(-VertUpFt)), "Location"]))
+
+plot_ly(mtn_agg, x = ~Location, y = ~VertUpFt, type = 'bar') %>% 
+  layout(title = "Cumulative Recorded Elevation Gain by Location", 
+  yaxis = list(title = "Elevation Gain (ft)", titlefont = list(
+             size = 16, color = 'rgb(107, 107, 107)'),
+             tickfont = list(size = 14,
+             color = 'rgb(107, 107, 107)')), 
+  xaxis = list(title = "", tickangle = 90, tickfont = list(
+           size = 14, color = 'rgb(107, 107, 107)')))
+```
+
+:::

@@ -10,7 +10,170 @@
 <atom:link href="https://drewdstat.github.io/blogposts.xml" rel="self" type="application/rss+xml"/>
 <description>Musings and lessons on statistical analysis and programming with a focus on epidemiology, bioinformatics, and health economics</description>
 <generator>quarto-1.6.39</generator>
-<lastBuildDate>Fri, 17 Jan 2025 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 31 Jan 2025 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>Experiments with EconML and Causal Learning: Customer Segmentation</title>
+  <dc:creator>Drew Day</dc:creator>
+  <link>https://drewdstat.github.io/posts/econml_customerseg.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>This document will cover practical examples of the use of causal machine learning in the context of business strategy. It draws heavily from and then expands on the “Customer Scenarios” included in the <a href="https://github.com/py-why/EconML/tree/main/notebooks/CustomerScenarios">EconML Python package documentation</a>.</p>
+</section>
+<section id="case-study-1-customer-segmentation" class="level2">
+<h2 class="anchored" data-anchor-id="case-study-1-customer-segmentation">Case Study 1: Customer Segmentation</h2>
+<p>When developing a strategy to</p>
+<section id="getting-started-importing-and-cleaning-data" class="level3">
+<h3 class="anchored" data-anchor-id="getting-started-importing-and-cleaning-data">Getting started: Importing and cleaning data</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Source Code</summary>
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#key imports</span></span>
+<span id="cb1-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb1-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> pandas <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> pd</span>
+<span id="cb1-4"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb1-5"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> sklearn.preprocessing <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> PolynomialFeatures</span>
+<span id="cb1-6"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> sklearn.ensemble <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> GradientBoostingRegressor</span>
+<span id="cb1-7"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> econml.dml <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> LinearDML, CausalForestDML</span>
+<span id="cb1-8"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> econml.cate_interpreter <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> SingleTreeCateInterpreter, SingleTreePolicyInterpreter</span>
+<span id="cb1-9"></span>
+<span id="cb1-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#Load data</span></span>
+<span id="cb1-11">file_url <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://msalicedatapublic.z5.web.core.windows.net/datasets/Pricing/pricing_sample.csv"</span></span>
+<span id="cb1-12">train_data <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pd.read_csv(file_url)</span>
+<span id="cb1-13"></span>
+<span id="cb1-14">train_data.head()</span></code></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>   account_age  age  avg_hours  ...    income  price     demand
+0            3   53   1.834234  ...  0.960863    1.0   3.917117
+1            5   54   7.171411  ...  0.732487    1.0  11.585706
+2            3   33   5.351920  ...  1.130937    1.0  24.675960
+3            2   34   6.723551  ...  0.929197    1.0   6.361776
+4            4   30   2.448247  ...  0.533527    0.8  12.624123
+
+[5 rows x 11 columns]</code></pre>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Source Code</summary>
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#Define estimator inputs</span></span>
+<span id="cb3-2">Y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> train_data[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"demand"</span>] <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#main outcome</span></span>
+<span id="cb3-3">T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> train_data[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"price"</span>] <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#treatment</span></span>
+<span id="cb3-4">X <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> train_data[[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"income"</span>]] <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#features</span></span>
+<span id="cb3-5">W <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> train_data.drop(columns <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"demand"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"price"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"income"</span>]) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#covariates</span></span>
+<span id="cb3-6"></span>
+<span id="cb3-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Get test data</span></span>
+<span id="cb3-8">X_test <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linspace(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>).reshape(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb3-9">X_test_data <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pd.DataFrame(X_test, columns <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"income"</span>])</span></code></pre></div>
+</details>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>Health economics</category>
+  <guid>https://drewdstat.github.io/posts/econml_customerseg.html</guid>
+  <pubDate>Fri, 31 Jan 2025 05:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Cohort State-Transition Models (cSTM) for Cost Effectiveness Analysis</title>
   <dc:creator>Drew Day</dc:creator>
@@ -27,15 +190,15 @@
 <p>This document will pull largely from a tutorial in using cSTM for cost-effectiveness analysis (CEA) published by <a href="https://journals.sagepub.com/doi/10.1177/0272989X221103163">Alarid-Escudero et al.</a> out of the Center for Research and Teaching in Economics (CIDE) in Mexico in 2022 (<a href="https://github.com/DARTH-git/cohort-modeling-tutorial-intro/tree/main">their code repo here</a>). It will cover both time-independent and time-dependent forms of cSTM, and the later parts of the document will also cover later developments in state-transition models and their applications to economic analysis.</p>
 <p>Additional discussion of best practices for STMs can be found in <a href="https://www.ispor.org/docs/default-source/resources/outcomes-research-guidelines-index/state-transition_modeling-3.pdf?sfvrsn=c71c04a_0">State-Transition Modeling: A Report of the ISPOR-SMDM Modeling Good Research Practices Task Force-3</a></p>
 </section>
-<section id="cstm-the-math" class="level3">
-<h3 class="anchored" data-anchor-id="cstm-the-math">cSTM: The Math</h3>
+<section id="time-independent-cstm-the-math" class="level3">
+<h3 class="anchored" data-anchor-id="time-independent-cstm-the-math">Time-Independent cSTM: The Math</h3>
 <section id="basic-concepts" class="level4">
 <h4 class="anchored" data-anchor-id="basic-concepts">Basic concepts</h4>
 <p>STMs model how the number of individuals in each of a set of states evolves over time. These states are a finite set of mutually exclusive (i.e., no overlap) and completely exhaustive (i.e., no unmeasured/unobserved states) discrete values. In the case of discrete time steps, the states of a given time can be represented by a “state vector” <img src="https://latex.codecogs.com/png.latex?m"> with individual entries for each of the number of states <img src="https://latex.codecogs.com/png.latex?n_s">:</p>
 <p><img src="https://latex.codecogs.com/png.latex?Equation%201:%20m_t=%5Bm_%7B(t,%201)%7D,%20m_%7B(t,%202)%7D,%20...,%20m_%7B(t,%20n_s)%7D%5D"></p>
-<p><img src="https://latex.codecogs.com/png.latex?n_s"> mutually exclusive states across <img src="https://latex.codecogs.com/png.latex?n_t"> mutually exclusive discrete time cycles, usually of a fixed length (e.g., months or years), wherein individuals in each state are indistinguishable from one another. Probabilities <img src="https://latex.codecogs.com/png.latex?p"> are assigned for transitioning between each combination of two states or staying within the same state over a given time cycle length. These probabilities are Markovian, which means that the probabilities are only dependent on the current state.</p>
-<p>As an example, if the probability of transitioning from the state “healthy” to the state “sick” is 0.02 over a one-year cycle, this means that the model assumes that everyone in the “healthy” state has the same 0.02 probability of transitioning into the “sick” state no matter at what time during that year or if they had been in the “sick” state prior to being in the “healthy” state or how long they’ve been in the “healthy” state, etc. The model simply assumes that the only factor impacting the probability is that current state. A subset of these states can be modeled as “dead ends”, where the probability of transitioning out of that state is zero, and this is typically only applied when there is a state representing death.</p>
-<p>A popular STM framework common in CEA is the Decision Analysis in R for Technologies in Health (DARTH) 4-state (<img src="https://latex.codecogs.com/png.latex?n_s=4">) “Sick-Sicker Model”. Here patients transition between the states “Healthy (H)”, “Sick (S1)”, “Sicker (S2)”, and “Dead (D)”, with the last state having a 100% probability of staying in that same state “D”. Fig. 1 below shows how the</p>
+<p><img src="https://latex.codecogs.com/png.latex?n_s"> mutually exclusive states across <img src="https://latex.codecogs.com/png.latex?n_t"> mutually exclusive discrete time cycles, usually of a fixed length (e.g., months or years), wherein individuals in each state are indistinguishable from one another. Probabilities <img src="https://latex.codecogs.com/png.latex?p"> are assigned for transitioning between each combination of two states or staying within the same state over a given time cycle length. These probabilities are Markovian, which means that the probabilities are only dependent on the current state. This is why these models are also sometimes called “Markov models”.</p>
+<p>As an example, if the probability of transitioning from the state “healthy” to the state “sick” is 0.02 over a one-year cycle, this means that the model assumes that everyone in the “healthy” state has the same 0.02 probability of transitioning into the “sick” state no matter at what time during that year or if they had been in the “sick” state prior to being in the “healthy” state or how long they’ve been in the “healthy” state, etc. The model simply assumes that the only factor impacting the probability is that current state.</p>
+<p>A popular STM framework common in CEA is the Decision Analysis in R for Technologies in Health (DARTH) 4-state (<img src="https://latex.codecogs.com/png.latex?n_s=4">) “Sick-Sicker Model”. Here patients transition between the states “Healthy (H)”, “Sick (S1)”, “Sicker (S2)”, and “Dead (D)”, with participants who reach the “Sicker” S2 state only either staying in that state or dying. Fig. 1 below shows how the states evolve, with probabilities of each transition being marked as <img src="https://latex.codecogs.com/png.latex?p_%7B%5Czeta_1%5Czeta_2%7D"> where each <img src="https://latex.codecogs.com/png.latex?%5Czeta_1"> is starting state and <img src="https://latex.codecogs.com/png.latex?%5Czeta_2"> is the ending state. Not shown are the probabilities of remaining in the same state, for example the probability of remaining dead (<img src="https://latex.codecogs.com/png.latex?p_%7BDD%7D">), which is 100%.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="https://drewdstat.github.io/posts/img/Sick-Sicker.png" height="350" class="figure-img"></p>

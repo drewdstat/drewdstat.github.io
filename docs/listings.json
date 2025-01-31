@@ -1,16 +1,17 @@
 [
   {
-    "listing": "/blogposts.html",
-    "items": [
-      "/posts/cstm_healthecon.html"
-    ]
-  },
-  {
     "listing": "/pkgguides.html",
     "items": [
       "/pkgguides/DrewDayRFunctions_overview.html",
       "/pkgguides/impgrplasso.html",
       "/pkgguides/wqspt.html"
+    ]
+  },
+  {
+    "listing": "/blogposts.html",
+    "items": [
+      "/posts/econml_customerseg.html",
+      "/posts/cstm_healthecon.html"
     ]
   }
 ]

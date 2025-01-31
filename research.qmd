@@ -15,6 +15,9 @@ about:
       href: extras/DrewDay-Academic-CV-2025Q1.pdf
 maintext:
   id: maintext
+dash:
+  id: dash
+  format: dashboard
 ---
 
 :::{#background}
@@ -25,6 +28,7 @@ My primary experience is in both developing and applying statistical methods to 
 :::
 
 :::{#maintext}
+
 ### Methods Development/Teaching
  - R package [wqspt](https://cran.r-project.org/web/packages/wqspt/index.html): Using a novel permutation test method to improve the statistical properties of the weighted quantile sum regression, which determines the additive combined association of multiple exposures with a single outcome.
  - R package [ResidualKMeans](https://www.github.com/drewdstat/ResidualKMeans): Method for unsupervised clustering of mixed type continuous and categorical data while controlling for structure induced by a grouping variable such as cohort in a multi-cohort study.

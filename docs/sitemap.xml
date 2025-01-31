@@ -2,39 +2,43 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://drewdstat.github.io/research.html</loc>
-    <lastmod>2025-01-20T14:55:15.087Z</lastmod>
+    <lastmod>2025-01-21T18:57:30.253Z</lastmod>
   </url>
   <url>
-    <loc>https://drewdstat.github.io/posts/cstm_healthecon.html</loc>
-    <lastmod>2025-01-20T18:38:28.490Z</lastmod>
+    <loc>https://drewdstat.github.io/posts/econml_customerseg.html</loc>
+    <lastmod>2025-01-31T04:54:24.886Z</lastmod>
   </url>
   <url>
-    <loc>https://drewdstat.github.io/pkgguides/wqspt.html</loc>
-    <lastmod>2025-01-18T18:32:51.579Z</lastmod>
-  </url>
-  <url>
-    <loc>https://drewdstat.github.io/pkgguides/DrewDayRFunctions_overview.html</loc>
-    <lastmod>2025-01-21T01:09:19.477Z</lastmod>
-  </url>
-  <url>
-    <loc>https://drewdstat.github.io/index.html</loc>
-    <lastmod>2025-01-20T13:32:57.926Z</lastmod>
-  </url>
-  <url>
-    <loc>https://drewdstat.github.io/blogposts.html</loc>
-    <lastmod>2025-01-18T17:43:49.759Z</lastmod>
-  </url>
-  <url>
-    <loc>https://drewdstat.github.io/mountains.html</loc>
-    <lastmod>2025-01-21T01:07:09.209Z</lastmod>
+    <loc>https://drewdstat.github.io/pkgguides.html</loc>
+    <lastmod>2025-01-18T18:32:34.074Z</lastmod>
   </url>
   <url>
     <loc>https://drewdstat.github.io/pkgguides/impgrplasso.html</loc>
     <lastmod>2025-01-18T19:19:14.064Z</lastmod>
   </url>
   <url>
-    <loc>https://drewdstat.github.io/pkgguides.html</loc>
-    <lastmod>2025-01-18T18:32:34.074Z</lastmod>
+    <loc>https://drewdstat.github.io/mountains.html</loc>
+    <lastmod>2025-01-31T04:49:37.678Z</lastmod>
+  </url>
+  <url>
+    <loc>https://drewdstat.github.io/blogposts.html</loc>
+    <lastmod>2025-01-18T17:43:49.759Z</lastmod>
+  </url>
+  <url>
+    <loc>https://drewdstat.github.io/index.html</loc>
+    <lastmod>2025-01-20T13:32:57.926Z</lastmod>
+  </url>
+  <url>
+    <loc>https://drewdstat.github.io/pkgguides/DrewDayRFunctions_overview.html</loc>
+    <lastmod>2025-01-21T01:09:19.477Z</lastmod>
+  </url>
+  <url>
+    <loc>https://drewdstat.github.io/pkgguides/wqspt.html</loc>
+    <lastmod>2025-01-18T18:32:51.579Z</lastmod>
+  </url>
+  <url>
+    <loc>https://drewdstat.github.io/posts/cstm_healthecon.html</loc>
+    <lastmod>2025-01-29T19:42:24.268Z</lastmod>
   </url>
   <url>
     <loc>https://drewdstat.github.io/projects.html</loc>
